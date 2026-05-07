@@ -28,6 +28,7 @@ import Agda.Utils.Monad ( whenM, anyM, when, unless )
 import Agda2Hs.Compile.ClassInstance ( compileInstance )
 import Agda2Hs.Compile.Data ( compileData, checkCompileToDataPragma )
 import Agda2Hs.Compile.Function ( compileFun, checkTransparentPragma, checkInlinePragma, checkCompileToFunctionPragma )
+import Agda2Hs.Compile.Laws (compileLaws)
 import Agda2Hs.Compile.Name ( hsTopLevelModuleName )
 import Agda2Hs.Compile.Postulate ( compilePostulate )
 import Agda2Hs.Compile.Record ( compileRecord, checkUnboxPragma )
@@ -118,6 +119,7 @@ compile genv tlm _ def =
       case (p , theDef def) of
         (NoPragma            , _         ) -> return []
         (ExistingClassPragma , _         ) -> return []
+        (LawsPragma          , _) -> compileLaws def
         (UnboxPragma s       , Record{}  ) -> [] <$ checkUnboxPragma def
         (TransparentPragma   , Function{}) -> [] <$ checkTransparentPragma def
         (InlinePragma        , Function{}) -> [] <$ checkInlinePragma def

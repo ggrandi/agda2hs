@@ -56,6 +56,7 @@ data ParsedPragma
   | TransparentPragma
   | NewTypePragma [Hs.Deriving ()]
   | TuplePragma Hs.Boxed
+  | LawsPragma
   | CompileToPragma String
   | DerivePragma (Maybe (Hs.DerivStrategy ()))
   deriving (Eq, Show)
@@ -88,6 +89,7 @@ processPragma qn = liftTCM (getUniqueCompilerPragma pragmaName qn) >>= \case
   Nothing -> return NoPragma
   Just (CompilerPragma r s)
     | "class" `isPrefixOf` s      -> return $ ClassPragma (words $ drop 5 s)
+    | s == "laws"                 -> return LawsPragma
     | s == "inline"               -> return InlinePragma
     | s == "existing-class"       -> return ExistingClassPragma
     | s == "unboxed"              -> return $ UnboxPragma Lazy

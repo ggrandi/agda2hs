@@ -1,0 +1,4 @@
+name: generating-instance-properties
+include: .
+depend: agda2hs-base
+flags: --erasure --no-projection-like
