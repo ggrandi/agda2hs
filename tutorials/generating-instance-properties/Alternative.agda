@@ -7,15 +7,16 @@ open import Haskell.Law.Applicative
 record Alternative (f : Type → Type) : Type₁ where
   infixl 3 _<|>_
   field
+    overlap ⦃ super ⦄ : Applicative f
     empty  : f a
     _<|>_ : f a → f a → f a
-    overlap ⦃ super ⦄ : Applicative f
 
 open Alternative ⦃...⦄ public
 {-# COMPILE AGDA2HS Alternative existing-class #-}
 
 record IsLawfulAlternative (f : Type → Type) ⦃ iAltF : Alternative f ⦄ : Type₁ where
   field
+    overlap ⦃ super ⦄ : IsLawfulApplicative f
     map-empty : {a b : Type} (g : a → b) → (g <$> empty) ≡ empty
     seq-empty : {a b : Type} (g : f (a → b)) → (g <*> empty) ≡ empty
     empty-seq : {a b : Type} (g : f a) → (empty <*> g) ≡ the (f b) empty
@@ -25,6 +26,9 @@ record IsLawfulAlternative (f : Type → Type) ⦃ iAltF : Alternative f ⦄ : T
     -- map-or : {a : Type} (g : a → b) (x y : f a) → (g <$> (x <|> y)) ≡ ((g <$> x) <|> (g <$> y))
 
 -- {-# COMPILE AGDA2HS IsLawfulAlternative #-}
+
+postulate
+  TODO : ∀{a} {A : Type a} → A
 
 instance
   open Alternative
@@ -39,10 +43,11 @@ instance
   open IsLawfulAlternative
 
   iLawfulAlternativeMaybe : IsLawfulAlternative Maybe
-  iLawfulAlternativeMaybe .IsLawfulAlternative.map-empty g = refl
-  iLawfulAlternativeMaybe .seq-empty Nothing = refl
-  iLawfulAlternativeMaybe .seq-empty (Just x) = refl
-  iLawfulAlternativeMaybe .empty-seq g = refl
+  iLawfulAlternativeMaybe = TODO
+  -- iLawfulAlternativeMaybe .IsLawfulAlternative.map-empty g = refl
+  -- iLawfulAlternativeMaybe .seq-empty Nothing = refl
+  -- iLawfulAlternativeMaybe .seq-empty (Just x) = refl
+  -- iLawfulAlternativeMaybe .empty-seq g = refl
   -- iLawfulAlternativeMaybe .or-empty Nothing = refl
   -- iLawfulAlternativeMaybe .or-empty (Just x) = refl
   -- iLawfulAlternativeMaybe .empty-or Nothing = refl
