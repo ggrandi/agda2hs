@@ -11,7 +11,7 @@ import Agda.Compiler.Backend hiding ( Args )
 import Agda.Interaction.BasicOps ( parseName )
 import Agda.Interaction.FindFile ( findFile' )
 
-import Agda.Syntax.Common ( Arg, defaultArg )
+import Agda.Syntax.Common ( Arg, defaultArg, setHiding, Hiding(Hidden) )
 import Agda.Syntax.Common.Pretty ( prettyShow )
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Internal
@@ -26,7 +26,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Sort
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.Reduce ( reduceDefCopy )
+import Agda.TypeChecking.Reduce ( reduceDefCopy, instantiate )
 
 import Agda.Utils.Either ( isRight )
 import Agda.Utils.GetOpt ( OptDescr(..) , ArgDescr(..) )
@@ -36,6 +36,10 @@ import Agda.Utils.Monad ( ifM )
 import Agda.Utils.Impossible ( __IMPOSSIBLE__ )
 
 import AgdaInternals
+import Agda.TypeChecking.MetaVars (newLevelMeta, newInstanceMeta)
+import Agda.TypeChecking.InstanceArguments (findInstance)
+import Control.Monad.Except (catchError)
+import Control.Monad.Error.Class (MonadError)
 
 multilineText :: Monad m => String -> m Doc
 multilineText s = vcat $ map text $ lines s
@@ -170,3 +174,19 @@ resolveStringName s = do
   case rname of
     DefinedName _ aname _ -> return $ anameName aname
     _ -> liftTCM $ typeError $ CustomBackendError "agda2hs" $ fromString $ "Couldn't find " ++ s
+
+{-| Turn a type into its Dec version |-}
+decify :: MonadTCM m => Type -> m Type
+decify t = do
+  dec <- resolveStringName "Haskell.Extra.Dec.Dec"
+  level <- liftTCM newLevelMeta
+  let vArg = defaultArg
+      hArg = setHiding Hidden . vArg
+  return $ t {unEl = Def dec $ map Apply [hArg $ Level level, vArg $ unEl t]}
+
+{-| Failably find instances for a given type t -}
+findInstance' :: (MonadTCM m, MonadError e m) => Type -> m (Maybe Term)
+findInstance' t = liftTCM (do
+      (m, v) <- newInstanceMeta "" t
+      findInstance m Nothing
+      Just <$> instantiate v) `catchError` return (return Nothing)

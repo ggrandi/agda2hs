@@ -73,3 +73,7 @@ eqNegation : ⦃ iEq : Eq e ⦄ → ⦃ IsLawfulEq e ⦄
            → ∀ { x y : e } → (x /= y) ≡ not (x == y)
 eqNegation = refl
 
+instance
+  iDecEquiv : {a : Type} → {{_ : Eq a}} {{_ : IsLawfulEq a}} → {x y : a} → Dec (x ≡ y)
+  iDecEquiv {x = x} {y = y}= x ≟ y
+  {-# COMPILE AGDA2HS iDecEquiv inline #-}
