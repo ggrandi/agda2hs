@@ -16,13 +16,14 @@ import Agda2Hs.Compile.Types
 import Agda.Syntax.Concrete (Name (nameNameParts), NamePart (..))
 import Agda.Syntax.Concrete.Name (NameParts)
 import Agda.TypeChecking.CheckInternal
+import Agda.TypeChecking.InstanceArguments (findInstance)
 import Agda.TypeChecking.ProjectionLike (reduceProjectionLike)
 import Agda.TypeChecking.Reduce (instantiate, reduce)
 import Agda.TypeChecking.Substitute (TelV (..))
 import Agda.TypeChecking.Telescope (telView)
 import Agda2Hs.AgdaUtils (decify, findInstance')
 import Agda2Hs.Compile.Term (compileTerm)
-import Agda2Hs.Compile.Type (compileDomType)
+import Agda2Hs.Compile.Type (compileDomType, compileType)
 import Agda2Hs.Compile.Utils (agda2hsErrorM, getInlineSymbols)
 import Agda2Hs.Language.Haskell (constrainType, qualifyType)
 import qualified Agda2Hs.Language.Haskell as Hs
@@ -30,6 +31,7 @@ import Control.Applicative
 import Control.Monad (guard, when)
 import Control.Monad.State (MonadState (state), StateT (StateT, runStateT), modify)
 import Data.Bifunctor (Bifunctor (second), bimap, first)
+import Data.Foldable (foldrM)
 import Data.Functor ((<&>))
 import Data.Maybe (mapMaybe)
 
@@ -44,61 +46,6 @@ haskellifyName =
         Id x -> (map (\case '-' -> '_'; c -> c) x ++)
     )
     ""
-
-typeToProp :: Type -> C (Hs.Type (), ([Hs.Pat ()], Hs.Exp ()))
-typeToProp ty = do
-  reportSDoc "rp" 10 $ text "compiling term:" <+> prettyTCM ty
-
-  v <- instantiate . unEl $ ty
-
-  toInline <- getInlineSymbols
-  v <- locallyReduceDefs (OnlyReduceDefs toInline) $ reduce v
-
-  let bad s t =
-        agda2hsErrorM $
-          vcat
-            [ text "cannot compile" <+> text (s ++ ":")
-            , nest 2 $ prettyTCM t
-            ]
-
-  v <- reduceProjectionLike v
-  case v of
-    (Pi a b) -> do
-      reportSDoc "rp" 13 $
-        text "Handling pi type ("
-          <+> prettyTCM (absName b)
-          <+> text ":"
-          <+> prettyTCM a
-          <+> text ") -> "
-          <+> underAbstraction
-            a
-            b
-            prettyTCM
-      ( `bimap`
-          if (argInfoHiding . domInfo $ a) == NotHidden
-            then first ((Hs.PVar () $ Hs.Ident () $ absName b) :)
-            else id
-        )
-        <$> ( compileDomType (absName b) a <&> \case
-                DomType _ hsA -> Hs.TyFun () hsA
-                DomConstraint hsA -> constrainType hsA
-                DomDropped -> id
-                DomForall Nothing -> id
-                DomForall (Just hsA) -> qualifyType hsA
-            )
-        <*> underAbstraction a b typeToProp
-    -- second (Hs.TyFun () dTy) <$> underAbstraction a b aux
-    x@(Def f es) -> do
-      reportSDoc "rp" 10 $ text "def: " <+> prettyTCM x
-      decTy <- decify ty
-      decExp <-
-        liftTCM (findInstance' decTy) >>= \case
-          Nothing -> agda2hsErrorM $ "No Dec instance found for" <+> prettyTCM decTy
-          Just decInst -> do
-            reportSDoc "rp" 10 $ text "decinst: " <+> prettyTCM decInst
-            compileTerm decTy decInst
-      pure (Hs.TyCon () $ Hs.UnQual () $ Hs.Ident () "Bool", ([], decExp))
-    x -> bad "unhandled other" x
 
 compileLaws :: Definition -> C [Hs.Decl ()]
 compileLaws def = sequenceListT $ do
@@ -122,8 +69,42 @@ compileLaws def = sequenceListT $ do
   fieldVal <- liftTCM . infer $ Def (defName def) [Proj ProjSystem $ unDom f]
   lift . reportSDoc "rp" 10 $ text "q: " <+> prettyTCM fieldVal
   let prop_name = Hs.Ident () . ("prop_" ++) . haskellifyName . nameNameParts . nameCanonical . qnameName . unDom $ f
-  (ty, (args, exp)) <- lift $ typeToProp fieldVal
+  TelV ts ty <- telView fieldVal
+  (decTy, exp) <- lift $ addContext ts $ do
+    decTy <- decify ty
+    decExp <-
+      liftTCM (findInstance' decTy) >>= \case
+        Nothing -> do
+          reportSDoc "rp" 10 $ "No Dec instance found for" <+> prettyTCM decTy
+          pure $ Hs.Con () $ Hs.UnQual () $ Hs.Ident () "False"
+        Just decInst -> do
+          reportSDoc "rp" 10 $ text "decinst: " <+> prettyTCM decInst
+          compileTerm decTy decInst
+    decTy <- compileType $ unEl decTy
+    pure (decTy, decExp)
+  lift . reportSDoc "rp" 10 $ text "e: " <+> pshow exp
+  ty <- lift $ typeSig ts decTy
   fromFoldable
     [ Hs.TypeSig () [prop_name] ty
-    , Hs.FunBind () [Hs.Match () prop_name args (Hs.UnGuardedRhs () exp) empty]
+    , Hs.FunBind () [Hs.Match () prop_name (pats ts) (Hs.UnGuardedRhs () exp) empty]
     ]
+ where
+  typeSig :: Tele (Dom Type) -> Hs.Type () -> C (Hs.Type ())
+  typeSig ts ty = foldrM aux ty (telToList ts)
+   where
+    aux a ty =
+      compileDomType (fst . unDom $ a) (snd <$> a) <&> \case
+        DomType _ hsA -> Hs.TyFun () hsA ty
+        DomConstraint hsA -> constrainType hsA ty
+        DomDropped -> ty
+        DomForall Nothing -> ty
+        DomForall (Just hsA) -> qualifyType hsA ty
+
+  pats :: Tele (Dom Type) -> [Hs.Pat ()]
+  pats = foldr aux [] . telToList
+   where
+    aux :: Dom (ArgName, Type) -> [Hs.Pat ()] -> [Hs.Pat ()]
+    aux Dom{domInfo, unDom = (name, _)} pats =
+      if argInfoHiding domInfo == NotHidden
+        then Hs.PVar () (Hs.Ident () name) : pats
+        else pats
