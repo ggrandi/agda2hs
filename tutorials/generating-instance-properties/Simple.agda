@@ -11,6 +11,7 @@ record Foo (a : Type) : Type₁ where
     bar       : a
     baz       : a
     bar2baz   : a -> a
+    bar2baz2  : a -> a
 
 open Foo ⦃ ... ⦄ public
 
@@ -20,7 +21,8 @@ instance
   iFooNat : Foo Nat
   iFooNat .bar = 0
   iFooNat .baz = 1
-  iFooNat .bar2baz = suc
+  iFooNat .bar2baz = _+ 1
+  iFooNat .bar2baz2 = 1 +_
 
 {-# COMPILE AGDA2HS iFooNat #-}
 
@@ -30,6 +32,7 @@ postulate
 record IsLawfulFoo (a : Type) ⦃ _ : Foo a ⦄ : Type₁ where
   field
     bar2baz-of-bar : bar2baz (the a bar) ≡ baz
+    bar2baz-eq-bar2baz2 : (x : a) → bar2baz x ≡ bar2baz2 x
 
 
 instance

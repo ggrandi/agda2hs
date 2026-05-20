@@ -175,18 +175,22 @@ resolveStringName s = do
     DefinedName _ aname _ -> return $ anameName aname
     _ -> liftTCM $ typeError $ CustomBackendError "agda2hs" $ fromString $ "Couldn't find " ++ s
 
-{-| Turn a type into its Dec version |-}
-decify :: MonadTCM m => Type -> m Type
+-- | Turn a type into its @Dec@ version
+decify :: (MonadTCM m) => Type -> m Type
 decify t = do
   dec <- resolveStringName "Haskell.Extra.Dec.Dec"
   level <- liftTCM newLevelMeta
   let vArg = defaultArg
       hArg = setHiding Hidden . vArg
-  return $ t {unEl = Def dec $ map Apply [hArg $ Level level, vArg $ unEl t]}
+  return $ t{unEl = Def dec $ map Apply [hArg $ Level level, vArg $ unEl t]}
 
-{-| Failably find instances for a given type t -}
-findInstance' :: (MonadTCM m, MonadError e m) => Type -> m (Maybe Term)
-findInstance' t = liftTCM (do
-      (m, v) <- newInstanceMeta "" t
-      findInstance m Nothing
-      Just <$> instantiate v) `catchError` return (return Nothing)
+-- | Failably find instances for a given type @t@
+findInstance' :: (MonadTCM m) => Type -> m (Maybe Term)
+findInstance' t = liftTCM $ do
+    (m, v) <- newInstanceMeta "" t
+    findInstance m Nothing
+    Just <$> instantiate v
+  `catchError` \err -> do
+    reportSDoc "rp" 10 $ text "couldn't find instance for " <+> prettyTCM t
+    reportSDoc "rp" 10 $ text "err" <+> prettyTCM err
+    return Nothing

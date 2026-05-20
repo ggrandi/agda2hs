@@ -3,6 +3,8 @@ module Alternative where
 open import Haskell.Prim using (the)
 open import Haskell.Prelude
 open import Haskell.Law.Applicative
+open import Haskell.Law.Eq
+open import Haskell.Extra.Dec
 
 record Alternative (f : Type → Type) : Type₁ where
   infixl 3 _<|>_
@@ -17,13 +19,13 @@ open Alternative ⦃...⦄ public
 record IsLawfulAlternative (f : Type → Type) ⦃ iAltF : Alternative f ⦄ : Type₁ where
   field
     overlap ⦃ super ⦄ : IsLawfulApplicative f
-    -- map-empty : {a b : Type} (g : a → b) → (g <$> empty) ≡ empty
-    -- seq-empty : {a b : Type} (g : f (a → b)) → (g <*> empty) ≡ empty
+    map-empty : {a b : Type} (g : a → b) → (g <$> empty) ≡ empty
+    seq-empty : {a b : Type} (g : f (a → b)) → (g <*> empty) ≡ empty
     empty-seq : {a b : Type} (g : f a) → (empty <*> g) ≡ empty {f} {f b}
     or-empty : {a : Type} (x : f a) → (x <|> empty) ≡ x
-    -- empty-or : {a : Type} (x : f a) → (empty <|> x) ≡ x
-    -- or-assoc : {a : Type} (x y z : f a) → (x <|> (y <|> z)) ≡ ((x <|> y) <|> z)
-    -- map-or : {a : Type} (g : a → b) (x y : f a) → (g <$> (x <|> y)) ≡ ((g <$> x) <|> (g <$> y))
+    empty-or : {a : Type} (x : f a) → (empty <|> x) ≡ x
+    or-assoc : {a : Type} (x y z : f a) → (x <|> (y <|> z)) ≡ ((x <|> y) <|> z)
+    map-or : {a : Type} (g : a → b) (x y : f a) → (g <$> (x <|> y)) ≡ ((g <$> x) <|> (g <$> y))
 
 -- {-# COMPILE AGDA2HS IsLawfulAlternative #-}
 
