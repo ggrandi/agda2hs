@@ -1,29 +1,40 @@
 module MonadPlus where
 
-open import Alternative
+open import Alternative hiding (TODO)
 open import Haskell.Prim
 open import Haskell.Prelude hiding (mempty; mappend)
+open import Haskell.Extra.Dec
+open import Haskell.Law.Eq
+open import Agda.Builtin.Nat using (Nat)
 
 record MonadPlus (m : Type → Type) : Type₁ where
   field
     overlap ⦃ super-monad ⦄ : Monad m 
     overlap ⦃ super-alt ⦄ : Alternative m 
 
-  mempty : m a
-  mempty = empty
-
-  mplus : m a → m a → m a
-  mplus = _<|>_
-
-
 open MonadPlus ⦃...⦄ public
-{-# COMPILE AGDA2HS MonadPlus class #-}
+{-# COMPILE AGDA2HS MonadPlus existing-class #-}
 
 record IsLawfulMonadPlus (m : Type → Type) ⦃ _ : MonadPlus m ⦄ : Type₁ where
   field
     overlap ⦃ super ⦄ : IsLawfulAlternative m
-    left-zero : ∀(k : a → m b) → (mempty >>= k) ≡ mempty
-    left-distribution : ∀(x y : m a) (k : a → m b) → (mplus x y >>= k) ≡ mplus (x >>= k) (y >>= k)
+    left-zero : ∀{a b : Type} (k : a → m b) → (_>>=_ {m} empty k) ≡ the (m b) empty
+    left-distribution : ∀{a b : Type} (x y : m a) (k : a → m b) → (_>>=_ {m} (x <|> y) k) ≡ _<|>_ {m} (x >>= k) (y >>= k)
+
+postulate
+  TODO : ∀{a} {A : Type a} → A
+
+instance
+  iMonadPlusList : MonadPlus List
+  iMonadPlusList = record {}
+
+  {-# COMPILE AGDA2HS iMonadPlusList #-}
+
+  iLawfulMonadPlusList : IsLawfulMonadPlus List
+  iLawfulMonadPlusList .IsLawfulMonadPlus.left-zero k = refl
+  iLawfulMonadPlusList .IsLawfulMonadPlus.left-distribution = TODO
+
+  {-# COMPILE AGDA2HS iLawfulMonadPlusList laws #-}
 
 
 

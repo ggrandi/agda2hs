@@ -4,6 +4,7 @@ open import Haskell.Prim using (the)
 open import Haskell.Prelude
 open import Haskell.Law.Applicative
 open import Haskell.Law.Eq
+open import Agda.Builtin.Nat using (Nat)
 open import Haskell.Extra.Dec
 
 record Alternative (f : Type → Type) : Type₁ where
@@ -19,15 +20,15 @@ open Alternative ⦃...⦄ public
 record IsLawfulAlternative (f : Type → Type) ⦃ iAltF : Alternative f ⦄ : Type₁ where
   field
     overlap ⦃ super ⦄ : IsLawfulApplicative f
-    map-empty : {a b : Type} (g : a → b) → (g <$> empty) ≡ empty
+    map-empty : {a b : Type} (g : a → b) → (g <$> empty) ≡ the (f b) empty
     seq-empty : {a b : Type} (g : f (a → b)) → (g <*> empty) ≡ empty
-    empty-seq : {a b : Type} (g : f a) → (empty <*> g) ≡ empty {f} {f b}
+    empty-seq : {a b : Type} (g : f a) → (empty <*> g) ≡ the (f b) empty
     or-empty : {a : Type} (x : f a) → (x <|> empty) ≡ x
     empty-or : {a : Type} (x : f a) → (empty <|> x) ≡ x
     or-assoc : {a : Type} (x y z : f a) → (x <|> (y <|> z)) ≡ ((x <|> y) <|> z)
     map-or : {a : Type} (g : a → b) (x y : f a) → (g <$> (x <|> y)) ≡ ((g <$> x) <|> (g <$> y))
 
--- {-# COMPILE AGDA2HS IsLawfulAlternative #-}
+open IsLawfulAlternative ⦃...⦄ public
 
 postulate
   TODO : ∀{a} {A : Type a} → A
@@ -39,17 +40,26 @@ instance
   empty iAlternativeMaybe = Nothing
   _<|>_ iAlternativeMaybe Nothing y = y
   _<|>_ iAlternativeMaybe (Just x) y = Just x
+  
+  {-# COMPILE AGDA2HS iAlternativeMaybe #-}
 
+  iAlternativeList : Alternative List
+  empty iAlternativeList = []
+  _<|>_ iAlternativeList x y = x ++ y
+  
+  {-# COMPILE AGDA2HS iAlternativeList #-}
 
   open IsLawfulAlternative
 
   iLawfulAlternativeMaybe : IsLawfulAlternative Maybe
+
+  {-# COMPILE AGDA2HS iLawfulAlternativeMaybe laws #-}
+
   iLawfulAlternativeMaybe = TODO
   -- map-empty iLawfulAlternativeMaybe g = refl
   -- seq-empty iLawfulAlternativeMaybe {a} {b} Nothing = refl
   -- seq-empty iLawfulAlternativeMaybe {a} {b} (Just x) = refl
-  -- empty-seq iLawfulAlternativeMaybe Nothing = refl
-  -- empty-seq iLawfulAlternativeMaybe (Just x) = refl
+  -- empty-seq iLawfulAlternativeMaybe = λ { Nothing → refl ; (Just x) → refl }
   -- or-empty iLawfulAlternativeMaybe Nothing = refl
   -- or-empty iLawfulAlternativeMaybe (Just x) = refl
   -- empty-or iLawfulAlternativeMaybe Nothing = refl
@@ -58,6 +68,9 @@ instance
   -- or-assoc iLawfulAlternativeMaybe (Just x) y z = refl
   -- map-or iLawfulAlternativeMaybe g Nothing y = refl
   -- map-or iLawfulAlternativeMaybe g (Just x) y = refl
+  
+  iLawfulAlternativeList : IsLawfulAlternative List
+  iLawfulAlternativeList = TODO
 
-{-# COMPILE AGDA2HS iAlternativeMaybe #-}
-{-# COMPILE AGDA2HS iLawfulAlternativeMaybe laws #-}
+  {-# COMPILE AGDA2HS iLawfulAlternativeList laws #-}
+

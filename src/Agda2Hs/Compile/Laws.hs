@@ -16,24 +16,17 @@ import Agda2Hs.Compile.Types
 import Agda.Syntax.Concrete (Name (nameNameParts), NamePart (..))
 import Agda.Syntax.Concrete.Name (NameParts)
 import Agda.TypeChecking.CheckInternal
-import Agda.TypeChecking.InstanceArguments (findInstance)
-import Agda.TypeChecking.ProjectionLike (reduceProjectionLike)
-import Agda.TypeChecking.Reduce (instantiate, reduce)
 import Agda.TypeChecking.Substitute (TelV (..))
-import Agda.TypeChecking.Telescope (telView)
-import Agda2Hs.AgdaUtils (decify, findInstance')
+import Agda.TypeChecking.Telescope (PiApplyM (piApplyM), telView)
+import Agda2Hs.AgdaUtils (decify, findInstance', resolveStringName)
 import Agda2Hs.Compile.Term (compileTerm)
 import Agda2Hs.Compile.Type (compileDomType, compileType)
-import Agda2Hs.Compile.Utils (agda2hsErrorM, getInlineSymbols)
-import Agda2Hs.Language.Haskell (constrainType, qualifyType)
 import qualified Agda2Hs.Language.Haskell as Hs
-import Control.Applicative
-import Control.Monad (guard, when)
-import Control.Monad.State (MonadState (state), StateT (StateT, runStateT), modify)
-import Data.Bifunctor (Bifunctor (second), bimap, first)
+import Agda2Hs.Language.Haskell.Utils (constrainType, qualifyType)
+import Control.Applicative (empty)
+import Control.Monad (guard)
 import Data.Foldable (foldrM)
-import Data.Functor ((<&>))
-import Data.Maybe (mapMaybe)
+import Data.Functor (($>), (<&>))
 
 fromFoldable :: (Foldable f, Monad m) => f a -> ListT m a
 fromFoldable = foldr consListT nilListT
@@ -49,6 +42,7 @@ haskellifyName =
 
 compileLaws :: Definition -> C [Hs.Decl ()]
 compileLaws def = sequenceListT $ do
+  natTy <- liftTCM natTy
   lift . reportSDoc "rp" 10 $ text "def: " <+> pretty (defType def)
   -- lift . reportSDoc "rp" 10 . pshow . defType $ def
   (q, _) <- case unEl . defType $ def of
@@ -66,10 +60,11 @@ compileLaws def = sequenceListT $ do
       empty
   guard $ (argInfoHiding . domInfo $ f) == NotHidden
   lift . reportSDoc "rp" 10 $ text "f: " <+> pretty f
-  fieldVal <- liftTCM . infer $ Def (defName def) [Proj ProjSystem $ unDom f]
-  lift . reportSDoc "rp" 10 $ text "q: " <+> prettyTCM fieldVal
+  fieldVal <- liftTCM (infer $ Def (defName def) [Proj ProjSystem $ unDom f]) >>= liftTCM . applyX natTy
+  lift . reportSDoc "rp" 10 $ text "fieldVal: " <+> prettyTCM fieldVal
   let prop_name = Hs.Ident () . ("prop_" ++) . haskellifyName . nameNameParts . nameCanonical . qnameName . unDom $ f
   TelV ts ty <- telView fieldVal
+  lift . reportSDoc "rp" 10 $ text "telescope args: " <+> prettyTCM ts
   (decTy, exp) <- lift $ addContext ts $ do
     decTy <- decify ty
     decExp <-
@@ -80,9 +75,7 @@ compileLaws def = sequenceListT $ do
         Just decInst -> do
           reportSDoc "rp" 10 $ text "decinst: " <+> prettyTCM decInst
           compileTerm decTy decInst
-    decTy <- compileType $ unEl decTy
-    pure (decTy, decExp)
-  lift . reportSDoc "rp" 10 $ text "e: " <+> pshow exp
+    (,decExp) <$> compileType (unEl decTy)
   ty <- lift $ typeSig ts decTy
   fromFoldable
     [ Hs.TypeSig () [prop_name] ty
@@ -108,3 +101,23 @@ compileLaws def = sequenceListT $ do
       if argInfoHiding domInfo == NotHidden
         then Hs.PVar () (Hs.Ident () name) : pats
         else pats
+
+  -- \| Applies @x@ to all pi types of the form `(x : Set) -> ...`
+  applyX :: Term -> Type -> TCM Type
+  applyX x ty = case unEl ty of
+    Pi arg body
+      -- currently it just checks `Type₀` since agda2hs expects most types to be there
+      | unEl (unDom arg) == Sort (Univ UType (Max 0 [])) -> do
+          appliedTy <- piApplyM ty x
+          applyX x appliedTy
+      | otherwise -> do
+          reportSDoc "rp" 100 $ text "N applyX: " <+> prettyTCM arg
+          x <- underAbstraction arg body (applyX x)
+          -- TODO: verify this doesn't break assumptions somewhere
+          pure $ ty $> Pi arg (body $> x)
+    _ -> pure ty
+
+  natTy :: TCM Term
+  natTy = do
+    qn <- resolveStringName "Agda.Builtin.Nat.Nat"
+    pure (Def qn [])

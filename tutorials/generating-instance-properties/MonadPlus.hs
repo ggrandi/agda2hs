@@ -1,6 +1,13 @@
 module MonadPlus where
 
-import Alternative (Alternative)
+import Alternative (Alternative (empty, (<|>)))
+import Numeric.Natural (Natural)
 
-class (Monad m, Alternative m) => MonadPlus m where
+instance MonadPlus []
 
+prop_left_zero :: (Natural -> [Natural]) -> Bool
+prop_left_zero k = (empty >>= k) == (empty :: [Natural])
+prop_left_distribution ::
+  [Natural] -> [Natural] -> (Natural -> [Natural]) -> Bool
+prop_left_distribution x y k =
+  (x <|> y >>= k) == ((x >>= k) <|> (y >>= k))

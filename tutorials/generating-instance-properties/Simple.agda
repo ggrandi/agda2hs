@@ -5,6 +5,7 @@ open import Haskell.Prelude
 open import Haskell.Law.Applicative
 open import Haskell.Extra.Dec
 open import Haskell.Law.Eq
+open import Agda.Builtin.Nat using (Nat)
 
 record Foo (a : Type) : Type₁ where
   field
