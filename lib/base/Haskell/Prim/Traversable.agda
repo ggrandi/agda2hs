@@ -57,7 +57,7 @@ instance
   open DefaultTraversable
 
   iTraversableList : Traversable List
-  iTraversableList = traverse= traverseList
+  iTraversableList = record {DefaultTraversable (record {traverse = traverseList})}
     where
       traverseList : ⦃ Applicative f ⦄ → (a → f b) → List a → f (List b)
       traverseList f []       = pure []

@@ -13,10 +13,10 @@ data Add : Type where
 
 {-# COMPILE AGDA2HS Add newtype #-}
 
-postulate 
+postulate
   TODO : {α : Type} → α
 
-instance 
+instance
   iEqAdd : Eq Add
   (iEqAdd Eq.== Add' x) (Add' y) = x == y
 

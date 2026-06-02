@@ -16,8 +16,8 @@ import Agda2Hs.Compile.Types
 import Agda.Syntax.Concrete (Name (nameNameParts), NamePart (..))
 import Agda.Syntax.Concrete.Name (NameParts)
 import Agda.TypeChecking.CheckInternal
-import Agda.TypeChecking.Substitute (TelV (..))
-import Agda.TypeChecking.Telescope (PiApplyM (piApplyM), telView)
+import Agda.TypeChecking.Substitute (TelV (..), mkPiSort)
+import Agda.TypeChecking.Telescope (PiApplyM (piApplyM), ifPi, telView)
 import Agda2Hs.AgdaUtils (decify, findInstance', resolveStringName)
 import Agda2Hs.Compile.Term (compileTerm)
 import Agda2Hs.Compile.Type (compileDomType, compileType)
@@ -25,20 +25,35 @@ import qualified Agda2Hs.Language.Haskell as Hs
 import Agda2Hs.Language.Haskell.Utils (constrainType, qualifyType)
 import Control.Applicative (empty)
 import Control.Monad (guard)
+import Control.Monad.RWS (MonadWriter (tell))
 import Data.Foldable (foldrM)
 import Data.Functor (($>), (<&>))
+import qualified Data.Text as T
 
+{-# INLINE fromFoldable #-}
 fromFoldable :: (Foldable f, Monad m) => f a -> ListT m a
 fromFoldable = foldr consListT nilListT
 
+{-# INLINE haskellifyName #-}
 haskellifyName :: NameParts -> String
 haskellifyName =
-  foldr
-    ( \case
-        Hole -> ("_" ++)
-        Id x -> (map (\case '-' -> '_'; c -> c) x ++)
-    )
-    ""
+  replaceProblematic
+    . foldr
+      ( \case
+          Hole -> ("_" ++)
+          Id x -> (x ++)
+      )
+      ""
+ where
+  replaceProblematic :: String -> String
+  replaceProblematic =
+    T.unpack
+      . T.replace "<$>" "fmap"
+      . T.replace "<*>" "zap"
+      . T.replace ">>" "seq"
+      . T.replace ">>=" "bind"
+      . T.replace "-" "_"
+      . T.pack
 
 compileLaws :: Definition -> C [Hs.Decl ()]
 compileLaws def = sequenceListT $ do
@@ -58,7 +73,7 @@ compileLaws def = sequenceListT $ do
     _ -> do
       lift . reportSDoc "rp" 10 $ text "expected RecordDefN but got: " <+> pretty x
       empty
-  guard $ (argInfoHiding . domInfo $ f) == NotHidden
+  guard $ argInfoHiding (domInfo f) == NotHidden
   lift . reportSDoc "rp" 10 $ text "f: " <+> pretty f
   fieldVal <- liftTCM (infer $ Def (defName def) [Proj ProjSystem $ unDom f]) >>= liftTCM . applyX natTy
   lift . reportSDoc "rp" 10 $ text "fieldVal: " <+> prettyTCM fieldVal
@@ -76,31 +91,29 @@ compileLaws def = sequenceListT $ do
           reportSDoc "rp" 10 $ text "decinst: " <+> prettyTCM decInst
           compileTerm decTy decInst
     (,decExp) <$> compileType (unEl decTy)
-  ty <- lift $ typeSig ts decTy
+  -- ty <- lift $ typeSig ts decTy
+  pats <- lift $ pats ts
   fromFoldable
-    [ Hs.TypeSig () [prop_name] ty
-    , Hs.FunBind () [Hs.Match () prop_name (pats ts) (Hs.UnGuardedRhs () exp) empty]
+    [ -- Hs.TypeSig () [prop_name] ty ,
+      Hs.FunBind () [Hs.Match () prop_name pats (Hs.UnGuardedRhs () exp) empty]
     ]
  where
-  typeSig :: Tele (Dom Type) -> Hs.Type () -> C (Hs.Type ())
-  typeSig ts ty = foldrM aux ty (telToList ts)
+  pats :: Tele (Dom Type) -> C [Hs.Pat ()]
+  pats = foldrM aux [] . telToList
    where
-    aux a ty =
-      compileDomType (fst . unDom $ a) (snd <$> a) <&> \case
-        DomType _ hsA -> Hs.TyFun () hsA ty
-        DomConstraint hsA -> constrainType hsA ty
-        DomDropped -> ty
-        DomForall Nothing -> ty
-        DomForall (Just hsA) -> qualifyType hsA ty
-
-  pats :: Tele (Dom Type) -> [Hs.Pat ()]
-  pats = foldr aux [] . telToList
-   where
-    aux :: Dom (ArgName, Type) -> [Hs.Pat ()] -> [Hs.Pat ()]
-    aux Dom{domInfo, unDom = (name, _)} pats =
-      if argInfoHiding domInfo == NotHidden
-        then Hs.PVar () (Hs.Ident () name) : pats
-        else pats
+    aux :: Dom (ArgName, Type) -> [Hs.Pat ()] -> C [Hs.Pat ()]
+    aux Dom{domInfo, unDom = (name, ty)} pats =
+      if argInfoHiding domInfo /= NotHidden
+        -- should be fine since all the type variables should be concrete
+        then pure pats
+        else do
+          compiledTy <- compileType (unEl ty)
+          let typedVar = Hs.PatTypeSig () (Hs.PVar () (Hs.Ident () name)) compiledTy
+          (ifPi $ unEl ty)
+            ( const . const $ do
+                pure $ Hs.PApp () (Hs.UnQual () $ Hs.Ident () "Fun") [Hs.PWildCard (), typedVar] : pats
+            )
+            (const $ pure $ typedVar : pats)
 
   -- \| Applies @x@ to all pi types of the form `(x : Set) -> ...`
   applyX :: Term -> Type -> TCM Type
@@ -112,9 +125,8 @@ compileLaws def = sequenceListT $ do
           applyX x appliedTy
       | otherwise -> do
           reportSDoc "rp" 100 $ text "N applyX: " <+> prettyTCM arg
-          x <- underAbstraction arg body (applyX x)
-          -- TODO: verify this doesn't break assumptions somewhere
-          pure $ ty $> Pi arg (body $> x)
+          x <- (body $>) <$> underAbstraction arg body (applyX x)
+          pure $ mkPiSort arg x `El` Pi arg x
     _ -> pure ty
 
   natTy :: TCM Term

@@ -45,7 +45,7 @@ record PreLawfulMonad (m : Type → Type) ⦃ _ : Monad m ⦄ : Type₁ where
       → ma >> mb ≡ ma >>= (λ x → mb)
 
     def-pure-return : ∀ {a} (x : a)
-      → pure {m} x ≡ return x
+      → the (m a) (pure x) ≡ return x
 
     -- Superclass functions
     def-fmap->>= : ∀ {a b} (f : a → b) (ma : m a)
