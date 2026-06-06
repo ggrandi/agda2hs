@@ -5,10 +5,9 @@ import Numeric.Natural (Natural)
 
 instance MonadPlus [] where
 
-prop_left_zero :: (Natural -> [Natural]) -> Bool
-prop_left_zero k = (empty >>= k) == (empty :: [Natural])
-prop_left_distribution ::
-                       [Natural] -> [Natural] -> (Natural -> [Natural]) -> Bool
-prop_left_distribution x y k
+prop_left_zero (Fun _ (k :: Natural -> [Natural]))
+  = (empty >>= k) == (empty :: [Natural])
+prop_left_distribution (x :: [Natural]) (y :: [Natural])
+  (Fun _ (k :: Natural -> [Natural]))
   = (x <|> y >>= k) == ((x >>= k) <|> (y >>= k))
 

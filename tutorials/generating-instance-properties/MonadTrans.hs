@@ -1,6 +1,6 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE MultiParamTypeClasses, RankNTypes #-}
 module MonadTrans where
 
-class MonadTrans t where
-    lift :: forall a m . Monad m => m a -> t m a
+class (Monad m, Monad (t m)) => MonadTrans m t where
+    lift :: forall a . m a -> t m a
 

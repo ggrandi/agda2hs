@@ -57,8 +57,8 @@ instance
 
   iLawfulAlternativeMaybe = TODO
   -- map-empty iLawfulAlternativeMaybe g = refl
-  -- seq-empty iLawfulAlternativeMaybe {a} {b} Nothing = refl
-  -- seq-empty iLawfulAlternativeMaybe {a} {b} (Just x) = refl
+  -- seq-empty iLawfulAlternativeMaybe Nothing = refl
+  -- seq-empty iLawfulAlternativeMaybe (Just x) = refl
   -- empty-seq iLawfulAlternativeMaybe = λ { Nothing → refl ; (Just x) → refl }
   -- or-empty iLawfulAlternativeMaybe Nothing = refl
   -- or-empty iLawfulAlternativeMaybe (Just x) = refl

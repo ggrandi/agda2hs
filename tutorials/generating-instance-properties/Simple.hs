@@ -14,8 +14,6 @@ instance Foo Natural where
     bar2baz = (+ 1)
     bar2baz2 = (1 +)
 
-prop_bar2baz_of_bar :: Bool
 prop_bar2baz_of_bar = bar2baz (bar :: Natural) == baz
-prop_bar2baz_eq_bar2baz2 :: Natural -> Bool
-prop_bar2baz_eq_bar2baz2 x = bar2baz x == bar2baz2 x
+prop_bar2baz_eq_bar2baz2 (x :: Natural) = bar2baz x == bar2baz2 x
 

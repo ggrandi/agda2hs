@@ -11,19 +11,15 @@ instance Alternative [] where
     empty = []
     x <|> y = x ++ y
 
-prop_map_empty :: (Natural -> Natural) -> Bool
-prop_map_empty g = (g <$> empty) == (empty :: [Natural])
-prop_seq_empty :: [Natural -> Natural] -> Bool
-prop_seq_empty g = (g <*> empty) == empty
-prop_empty_seq :: [Natural] -> Bool
-prop_empty_seq g = (empty <*> g) == (empty :: [Natural])
-prop_or_empty :: [Natural] -> Bool
-prop_or_empty x = (x <|> empty) == x
-prop_empty_or :: [Natural] -> Bool
-prop_empty_or x = (empty <|> x) == x
-prop_or_assoc :: [Natural] -> [Natural] -> [Natural] -> Bool
-prop_or_assoc x y z = (x <|> (y <|> z)) == (x <|> y <|> z)
-prop_map_or ::
-            (Natural -> Natural) -> [Natural] -> [Natural] -> Bool
-prop_map_or g x y = (g <$> (x <|> y)) == (g <$> x <|> g <$> y)
+prop_map_empty (Fun _ (g :: Natural -> Natural))
+  = (g <$> empty) == (empty :: [Natural])
+prop_seq_empty (g :: [Natural -> Natural]) = (g <*> empty) == empty
+prop_empty_seq (g :: [Natural])
+  = (empty <*> g) == (empty :: [Natural])
+prop_or_empty (x :: [Natural]) = (x <|> empty) == x
+prop_empty_or (x :: [Natural]) = (empty <|> x) == x
+prop_or_assoc (x :: [Natural]) (y :: [Natural]) (z :: [Natural])
+  = (x <|> (y <|> z)) == (x <|> y <|> z)
+prop_map_or (Fun _ (g :: Natural -> Natural)) (x :: [Natural])
+  (y :: [Natural]) = (g <$> (x <|> y)) == (g <$> x <|> g <$> y)
 

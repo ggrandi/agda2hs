@@ -1,17 +1,14 @@
 module Example1.Writer where
 
 -- {-# FOREIGN AGDA2HS {-# LANGUAGE UndecidableInstances #-} #-}
-{-# FOREIGN AGDA2HS 
-import Test.QuickCheck (Arbitrary (..))
-import Data.Functor (($>))
-#-}
 
 open import Haskell.Prelude
 open import Haskell.Extra.Dec
 open import Haskell.Law.Eq
 open import Haskell.Law.Equality
 
--- newtype Writer m a = Writer {runWriter :: m [a]}
+open import Haskell.Test.QuickCheck
+
 record Writer (w a : Type) : Type where
   no-eta-equality; pattern; constructor Writer'
   field
@@ -51,12 +48,12 @@ instance
   iDefaultApplicativeWriter : ⦃ _ : Monoid w ⦄ → DefaultApplicative (Writer w)
   iDefaultApplicativeWriter .DefaultApplicative.pure = Writer' ∘ pure
   iDefaultApplicativeWriter .DefaultApplicative._<*>_ (Writer' mf) (Writer' mx) = Writer' $ mf <*> mx
-  
+
   iApplicativeWriter : ⦃ _ : Monoid w ⦄ → Applicative (Writer w)
   iApplicativeWriter = record{DefaultApplicative iDefaultApplicativeWriter}
-  
+
   {-# COMPILE AGDA2HS iApplicativeWriter #-}
-  
+ 
   iDefaultMonadWriter : ⦃ _ : Monoid w ⦄ → DefaultMonad (Writer w)
   (iDefaultMonadWriter DefaultMonad.>>= Writer' x) k = Writer' $ x >>= (runWriter ∘ k)
 
@@ -65,14 +62,8 @@ instance
 
   {-# COMPILE AGDA2HS iMonadWriter #-}
 
+  iArbitraryWriter : ⦃ _ : Arbitrary w ⦄ ⦃ _ : Arbitrary a ⦄ → Arbitrary (Writer w a)
+  iArbitraryWriter .arbitrary = curry Writer' <$> arbitrary <*> arbitrary
+  iArbitraryWriter .shrink    = (Writer' <$>_) ∘ shrink ∘ runWriter
 
-{-# FOREIGN AGDA2HS
-
-instance (Arbitrary w, Arbitrary a) => Arbitrary (Writer w a) where
-  arbitrary = liftA2 (($>) . tell) arbitrary arbitrary
-
-  shrink x =
-    let (w, a) = runWriter x
-     in liftA2 (($>) . tell) (shrink w) (shrink a)
-
-#-}
+  {-# COMPILE AGDA2HS iArbitraryWriter #-}

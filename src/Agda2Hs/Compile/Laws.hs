@@ -20,14 +20,13 @@ import Agda.TypeChecking.Substitute (TelV (..), mkPiSort)
 import Agda.TypeChecking.Telescope (PiApplyM (piApplyM), ifPi, telView)
 import Agda2Hs.AgdaUtils (decify, findInstance', resolveStringName)
 import Agda2Hs.Compile.Term (compileTerm)
-import Agda2Hs.Compile.Type (compileDomType, compileType)
+import Agda2Hs.Compile.Type (compileType)
+import Agda2Hs.Compile.Utils (agda2hsError)
 import qualified Agda2Hs.Language.Haskell as Hs
-import Agda2Hs.Language.Haskell.Utils (constrainType, qualifyType)
 import Control.Applicative (empty)
 import Control.Monad (guard)
-import Control.Monad.RWS (MonadWriter (tell))
 import Data.Foldable (foldrM)
-import Data.Functor (($>), (<&>))
+import Data.Functor (($>))
 import qualified Data.Text as T
 
 {-# INLINE fromFoldable #-}
@@ -49,54 +48,52 @@ haskellifyName =
   replaceProblematic =
     T.unpack
       . T.replace "<$>" "fmap"
+      -- maybe should call this one seq
       . T.replace "<*>" "zap"
+      -- maybe should call this one seqLeft
       . T.replace ">>" "seq"
       . T.replace ">>=" "bind"
       . T.replace "-" "_"
       . T.pack
 
 compileLaws :: Definition -> C [Hs.Decl ()]
-compileLaws def = sequenceListT $ do
+compileLaws def = do
   natTy <- liftTCM natTy
-  lift . reportSDoc "rp" 10 $ text "def: " <+> pretty (defType def)
-  -- lift . reportSDoc "rp" 10 . pshow . defType $ def
+  reportSDoc "rp" 10 $ text "def: " <+> pretty (defType def)
+  -- reportSDoc "rp" 10 . pshow . defType $ def
   (q, _) <- case unEl . defType $ def of
     Def q elims -> pure (q, elims)
-    x -> do
-      lift . reportSDoc "rp" 10 $ text "expected def but got: " <+> prettyTCM x
-      empty
-  lift . reportSDoc "rp" 10 $ text "x: " <+> prettyTCM q
+    x -> agda2hsError =<< text "expected def but got: " <+> prettyTCM x
+  reportSDoc "rp" 10 $ text "x: " <+> prettyTCM q
   x <- getConstInfo q
-  lift . reportSDoc "rp" 10 $ text "x: " <+> pretty x
-  f <- case theDef x of
-    RecordDefn x -> fromFoldable . _recFields $ x
-    _ -> do
-      lift . reportSDoc "rp" 10 $ text "expected RecordDefN but got: " <+> pretty x
-      empty
-  guard $ argInfoHiding (domInfo f) == NotHidden
-  lift . reportSDoc "rp" 10 $ text "f: " <+> pretty f
-  fieldVal <- liftTCM (infer $ Def (defName def) [Proj ProjSystem $ unDom f]) >>= liftTCM . applyX natTy
-  lift . reportSDoc "rp" 10 $ text "fieldVal: " <+> prettyTCM fieldVal
-  let prop_name = Hs.Ident () . ("prop_" ++) . haskellifyName . nameNameParts . nameCanonical . qnameName . unDom $ f
-  TelV ts ty <- telView fieldVal
-  lift . reportSDoc "rp" 10 $ text "telescope args: " <+> prettyTCM ts
-  (decTy, exp) <- lift $ addContext ts $ do
-    decTy <- decify ty
-    decExp <-
-      liftTCM (findInstance' decTy) >>= \case
-        Nothing -> do
-          reportSDoc "rp" 10 $ "No Dec instance found for" <+> prettyTCM decTy
-          pure $ Hs.Con () $ Hs.UnQual () $ Hs.Ident () "False"
-        Just decInst -> do
-          reportSDoc "rp" 10 $ text "decinst: " <+> prettyTCM decInst
-          compileTerm decTy decInst
-    (,decExp) <$> compileType (unEl decTy)
-  -- ty <- lift $ typeSig ts decTy
-  pats <- lift $ pats ts
-  fromFoldable
-    [ -- Hs.TypeSig () [prop_name] ty ,
-      Hs.FunBind () [Hs.Match () prop_name pats (Hs.UnGuardedRhs () exp) empty]
-    ]
+  reportSDoc "rp" 10 $ text "x: " <+> pretty x
+  sequenceListT $ do
+    f <- case theDef x of
+      RecordDefn x -> fromFoldable . _recFields $ x
+      _ -> do
+        lift . reportSDoc "rp" 10 $ text "expected RecordDefN but got: " <+> pretty x
+        empty
+    guard $ argInfoHiding (domInfo f) == NotHidden
+    lift . reportSDoc "rp" 10 $ text "f: " <+> pretty f
+    fieldVal <- liftTCM (infer $ Def (defName def) [Proj ProjSystem $ unDom f]) >>= liftTCM . applyX natTy
+    lift . reportSDoc "rp" 10 $ text "fieldVal: " <+> prettyTCM fieldVal
+    let prop_name = Hs.Ident () . ("prop_" ++) . haskellifyName . nameNameParts . nameCanonical . qnameName . unDom $ f
+    TelV ts ty <- telView fieldVal
+    lift . reportSDoc "rp" 10 $ text "telescope args: " <+> prettyTCM ts
+    (_, decidedExp) <- lift $ addContext ts $ do
+      decTy <- decify ty
+      decExp <-
+        liftTCM (findInstance' decTy) >>= \case
+          Nothing -> do
+            reportSDoc "rp" 10 $ "No Dec instance found for" <+> prettyTCM decTy
+            pure $ Hs.Con () $ Hs.UnQual () $ Hs.Ident () "False"
+          Just decInst -> do
+            reportSDoc "rp" 10 $ text "decinst: " <+> prettyTCM decInst
+            compileTerm decTy decInst
+      (,decExp) <$> compileType (unEl decTy)
+    -- ty <- lift $ typeSig ts decTy
+    pats <- lift $ pats ts
+    pure $ Hs.FunBind () [Hs.Match () prop_name pats (Hs.UnGuardedRhs () decidedExp) Nothing]
  where
   pats :: Tele (Dom Type) -> C [Hs.Pat ()]
   pats = foldrM aux [] . telToList
@@ -131,5 +128,5 @@ compileLaws def = sequenceListT $ do
 
   natTy :: TCM Term
   natTy = do
-    qn <- resolveStringName "Agda.Builtin.Nat.Nat"
+    qn <- resolveStringName "Nat"
     pure (Def qn [])

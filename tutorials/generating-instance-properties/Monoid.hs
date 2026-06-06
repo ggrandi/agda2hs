@@ -13,13 +13,11 @@ instance Semigroup Add where
 instance Monoid Add where
     mempty = Add' 0
 
-prop_associativity :: Add -> Add -> Add -> Bool
-prop_associativity x y z = x <> y <> z == (x <> y) <> z
+prop_associativity (x :: Add) (y :: Add) (z :: Add)
+  = x <> y <> z == (x <> y) <> z
 
-prop_rightIdentity :: Add -> Bool
-prop_rightIdentity x = x <> mempty == x
-prop_leftIdentity :: Add -> Bool
-prop_leftIdentity x = mempty <> x == x
-prop_concatenation :: [Add] -> Bool
-prop_concatenation xs = mconcat xs == foldr (<>) mempty xs
+prop_rightIdentity (x :: Add) = x <> mempty == x
+prop_leftIdentity (x :: Add) = mempty <> x == x
+prop_concatenation (xs :: [Add])
+  = mconcat xs == foldr (<>) mempty xs
 

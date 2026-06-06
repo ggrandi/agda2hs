@@ -22,6 +22,11 @@ record Bar (a : Type) : Type₁ where
 postulate TODO : {α : Type} → α
 
 instance
+  iFooNat : Foo Nat
+  iFooNat .Foo.foo = 100
+
+  {-# COMPILE AGDA2HS iFooNat #-}
+
   iBarNat : Bar Nat
   iBarNat .Bar.bar x = TODO
 

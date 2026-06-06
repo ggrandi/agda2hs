@@ -43,9 +43,45 @@ mapDec f g (True  ⟨ x ⟩) = True  ⟨ f x   ⟩
 mapDec f g (False ⟨ h ⟩) = False ⟨ h ∘ g ⟩
 {-# COMPILE AGDA2HS mapDec transparent #-}
 
+
 ifDec : Dec a → (@0 {{a}} → b) → (@0 {{a → ⊥}} → b) → b
 ifDec (b ⟨ p ⟩) x y = if b then (λ where {{refl}} → x {{p}}) else (λ where {{refl}} → y {{p}})
 {-# COMPILE AGDA2HS ifDec inline #-}
+
+decide : (@0 a : Type) ⦃ _ : Dec a ⦄ → Dec a
+decide _ ⦃ x ⦄ = x
+{-# COMPILE AGDA2HS decide inline #-}
+
+if'_then_else_ : (a : Type) {b : Type} ⦃ _ : Dec a ⦄ → (@0 {{a}} → b) → (@0 {{a → ⊥}} → b) → b
+if'_then_else_ a = ifDec (decide a)
+{-# COMPILE AGDA2HS if'_then_else_ inline #-}
+
+mapDec' : (@0 a : Type) {@0 b : Type} ⦃ _ : Dec a ⦄
+       → @0 (a → b)
+       → @0 (b → a)
+       → Dec b
+mapDec' a f g = mapDec f g (decide a)
+{-# COMPILE AGDA2HS mapDec' transparent #-}
+
+×-reflects-&& : ∀ {b1 b2 p q} → Reflects p b1 → Reflects q b2 → Reflects (p × q) (b1 && b2)
+×-reflects-&& {False} {_}     r1 r2 = r1 ∘ fst
+×-reflects-&& {True}  {False} r1 r2 = r2 ∘ snd
+×-reflects-&& {True}  {True}  r1 r2 = r1 , r2
+
+×-×-reflects-&&-&& : ∀ {p q r b1 b2 b3} → Reflects p b1 → Reflects q b2 → Reflects r b3 → Reflects (p × q × r) (b1 && b2 && b3)
+×-×-reflects-&&-&& r1 r2 r3 = mapReflects
+  (λ z → z .fst , z .snd .fst , z .snd .snd) 
+  (λ z → z ._×_×_.fst3 , (z ._×_×_.snd3 , z ._×_×_.thd3))
+  (×-reflects-&& r1 (×-reflects-&& r2 r3))
+
+Either-reflects-|| : ∀ {b1 b2 p q} → Reflects p b1 → Reflects q b2 → Reflects (Either p q) (b1 || b2)
+Either-reflects-|| {False} {False} r1 r2 = either r1 r2
+Either-reflects-|| {False} {True}  r1 r2 = Right r2
+Either-reflects-|| {True}  {_}     r1 r2 = Left r1
+
+@0 reflects-decide : (P : Type) ⦃ _ : Dec P ⦄ → Reflects P (decide P .value)
+reflects-decide _ ⦃ False ⟨ h ⟩ ⦄ = h
+reflects-decide _ ⦃ True ⟨ h ⟩ ⦄ = h
 
 instance
   iDecIsTrue : {b : Bool} → Dec (IsTrue b)
@@ -65,18 +101,12 @@ instance
 
   iDecPair : {{Dec a}} → {{Dec b}} → Dec (a × b)
   iDecPair ⦃ b1 ⟨ r1 ⟩ ⦄ ⦃ b2 ⟨ r2 ⟩ ⦄ = (b1 && b2) ⟨ ×-reflects-&& r1 r2 ⟩
-    where
-      @0 ×-reflects-&& : ∀ {b1 b2 p q} → Reflects p b1 → Reflects q b2 → Reflects (p × q) (b1 && b2)
-      ×-reflects-&& {False} {_}     r1 r2 = r1 ∘ fst
-      ×-reflects-&& {True}  {False} r1 r2 = r2 ∘ snd
-      ×-reflects-&& {True}  {True}  r1 r2 = r1 , r2
   {-# COMPILE AGDA2HS iDecPair inline #-}
+
+  iDecTriple : {{Dec a}} → {{Dec b}} → {{Dec c}} → Dec (a × b × c)
+  iDecTriple {a} {b} {c} ⦃ b1 ⟨ r1 ⟩ ⦄ ⦃ b2 ⟨ r2 ⟩ ⦄ ⦃ b3 ⟨ r3 ⟩ ⦄ = (b1 && b2 && b3) ⟨ ×-×-reflects-&&-&& r1 r2 r3 ⟩
+  {-# COMPILE AGDA2HS iDecTriple inline #-}
 
   iDecEither : {{Dec a}} → {{Dec b}} → Dec (Either a b)
   iDecEither ⦃ b1 ⟨ r1 ⟩ ⦄ ⦃ b2 ⟨ r2 ⟩ ⦄ = (b1 || b2) ⟨ Either-reflects-|| r1 r2 ⟩
-    where
-      @0 Either-reflects-|| : ∀ {b1 b2 p q} → Reflects p b1 → Reflects q b2 → Reflects (Either p q) (b1 || b2)
-      Either-reflects-|| {False} {False} r1 r2 = either r1 r2
-      Either-reflects-|| {False} {True}  r1 r2 = Right r2
-      Either-reflects-|| {True}  {_}     r1 r2 = Left r1
   {-# COMPILE AGDA2HS iDecEither inline #-}
