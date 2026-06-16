@@ -1,4 +1,4 @@
-{-# OPTIONS --no-auto-inline #-}
+{-x ⦃ x₁ ⦄ → {!(fst₁ , snd₁) → {!(fst₁ , snd₁) → {!(fst₁ , snd₁) → {! !}!}!}!}-}
 
 -- Agda doesn't have an Int type (only Word64). With some work we
 -- can represent signed ints using Word64.

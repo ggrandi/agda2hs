@@ -22,6 +22,6 @@ ap m1 m2 = do
 -- | Promote a function to a monad.
 -- This is equivalent to 'fmap' but specialised to Monads.
 liftM  : ⦃ _ : Monad m ⦄ → (a -> b) -> m a -> m b
-liftM f x = do 
+liftM f x = do
   x <- x
   return (f x)

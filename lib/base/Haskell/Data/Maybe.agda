@@ -10,7 +10,7 @@ isNothing : Maybe a → Bool
 isNothing Nothing  = True
 isNothing (Just _) = False
 
-fromJust : (x : Maybe a) → @0 {IsJust x} → a
+fromJust : (x : Maybe a) → @0 {{IsJust x}} → a
 fromJust Nothing  = error "fromJust Nothing"
 fromJust (Just x) = x
 

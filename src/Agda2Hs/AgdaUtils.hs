@@ -190,7 +190,4 @@ findInstance' t = liftTCM $ do
     (m, v) <- newInstanceMeta "" t
     findInstance m Nothing
     Just <$> instantiate v
-  `catchError` \err -> do
-    reportSDoc "rp" 10 $ text "couldn't find instance for " <+> prettyTCM t
-    reportSDoc "rp" 10 $ text "err" <+> prettyTCM err
-    return Nothing
+  `catchError` const (pure Nothing)

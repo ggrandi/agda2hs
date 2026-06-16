@@ -32,4 +32,3 @@ instance
 
   {-# COMPILE AGDA2HS iBarNat laws #-}
 
-

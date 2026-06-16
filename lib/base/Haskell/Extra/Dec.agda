@@ -16,6 +16,10 @@ of : {b : Bool} → if b then P else (P → ⊥) → Reflects P b
 of {b = False} np = np
 of {b = True}  p  = p
 
+of' : {b : Bool} → if b then (P → ⊥) else P → Reflects P (not b)
+of' {b = True}  np = np
+of' {b = False} p  = p
+
 invert : ∀ {b} → Reflects P b → if b then P else (P → ⊥)
 invert {b = False} np = np
 invert {b = True}  p  = p
@@ -43,7 +47,6 @@ mapDec f g (True  ⟨ x ⟩) = True  ⟨ f x   ⟩
 mapDec f g (False ⟨ h ⟩) = False ⟨ h ∘ g ⟩
 {-# COMPILE AGDA2HS mapDec transparent #-}
 
-
 ifDec : Dec a → (@0 {{a}} → b) → (@0 {{a → ⊥}} → b) → b
 ifDec (b ⟨ p ⟩) x y = if b then (λ where {{refl}} → x {{p}}) else (λ where {{refl}} → y {{p}})
 {-# COMPILE AGDA2HS ifDec inline #-}
@@ -63,6 +66,7 @@ mapDec' : (@0 a : Type) {@0 b : Type} ⦃ _ : Dec a ⦄
 mapDec' a f g = mapDec f g (decide a)
 {-# COMPILE AGDA2HS mapDec' transparent #-}
 
+
 ×-reflects-&& : ∀ {b1 b2 p q} → Reflects p b1 → Reflects q b2 → Reflects (p × q) (b1 && b2)
 ×-reflects-&& {False} {_}     r1 r2 = r1 ∘ fst
 ×-reflects-&& {True}  {False} r1 r2 = r2 ∘ snd
@@ -70,7 +74,7 @@ mapDec' a f g = mapDec f g (decide a)
 
 ×-×-reflects-&&-&& : ∀ {p q r b1 b2 b3} → Reflects p b1 → Reflects q b2 → Reflects r b3 → Reflects (p × q × r) (b1 && b2 && b3)
 ×-×-reflects-&&-&& r1 r2 r3 = mapReflects
-  (λ z → z .fst , z .snd .fst , z .snd .snd) 
+  (λ z → z .fst , z .snd .fst , z .snd .snd)
   (λ z → z ._×_×_.fst3 , (z ._×_×_.snd3 , z ._×_×_.thd3))
   (×-reflects-&& r1 (×-reflects-&& r2 r3))
 
@@ -90,12 +94,12 @@ instance
   {-# COMPILE AGDA2HS iDecIsTrue transparent #-}
 
   iDecIsFalse : {b : Bool} → Dec (IsFalse b)
-  iDecIsFalse {b} = mapDec isTrueNotIsFalse isFalseIsTrueNot (iDecIsTrue {not b})
+  iDecIsFalse {b} = mapDec' (IsTrue (not b)) isTrueNotIsFalse isFalseIsTrueNot
     where
-      @0 isTrueNotIsFalse : {b : Bool} → IsTrue (not b) → IsFalse b
+      isTrueNotIsFalse : {b : Bool} → IsTrue (not b) → IsFalse b
       isTrueNotIsFalse {False} IsTrue.itsTrue = IsFalse.itsFalse
 
-      @0 isFalseIsTrueNot : {b : Bool} → IsFalse b → IsTrue (not b)
+      isFalseIsTrueNot : {b : Bool} → IsFalse b → IsTrue (not b)
       isFalseIsTrueNot {False} IsFalse.itsFalse = IsTrue.itsTrue
   {-# COMPILE AGDA2HS iDecIsFalse inline #-}
 

@@ -31,6 +31,9 @@ Distributiveˡ _+_ _*_ = ∀ x y z → x * (y + z) ≡ (x * y) + (x * z)
 Distributiveʳ : {a : Type} → (_+_ : a → a → a) → (_*_ : a → a → a) → Type
 Distributiveʳ _+_ _*_ =  ∀ x y z → (y + z) * x ≡ (y * x) + (z * x)
 
+contrapositive : ∀{a b} {A : Type a} {B : Type b} → (A → B) → ((B → ⊥) → (A → ⊥))
+contrapositive f g x = g (f x)
+
 {-|
 Definition of homomorphism over unary functions.
 A function φ is homomorphic w.r.t. some function or structure f

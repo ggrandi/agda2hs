@@ -456,6 +456,8 @@ compileTerm ty v = do
 
   v <- instantiate v
 
+  reportSDoc "agda2hs.compile.term" 10  $ text "instantiating:" <+> prettyTCM v
+
   toInline <- getInlineSymbols
   v <- locallyReduceDefs (OnlyReduceDefs toInline) $ reduce v
 

@@ -5,12 +5,14 @@ open import Haskell.Prim
 open import Haskell.Prelude hiding (mempty; mappend)
 open import Haskell.Extra.Dec
 open import Haskell.Law.Eq
+open import Haskell.Law.Equality
+open import Haskell.Law.List
 open import Agda.Builtin.Nat using (Nat)
 
 record MonadPlus (m : Type → Type) : Type₁ where
   field
-    overlap ⦃ super-monad ⦄ : Monad m 
-    overlap ⦃ super-alt ⦄ : Alternative m 
+    overlap ⦃ super-monad ⦄ : Monad m
+    overlap ⦃ super-alt ⦄ : Alternative m
 
 open MonadPlus ⦃...⦄ public
 {-# COMPILE AGDA2HS MonadPlus existing-class #-}
@@ -32,9 +34,14 @@ instance
 
   iLawfulMonadPlusList : IsLawfulMonadPlus List
   iLawfulMonadPlusList .IsLawfulMonadPlus.left-zero k = refl
-  iLawfulMonadPlusList .IsLawfulMonadPlus.left-distribution = TODO
+  iLawfulMonadPlusList .IsLawfulMonadPlus.left-distribution [] ys k = refl
+  iLawfulMonadPlusList .IsLawfulMonadPlus.left-distribution (x ∷ xs) ys k = begin 
+    k x ++ (xs <|> ys) >>= k
+      ≡⟨ cong (_ ++_) (iLawfulMonadPlusList .IsLawfulMonadPlus.left-distribution xs ys k ) ⟩
+    k x ++ (xs >>= k ++ ys >>= k)
+      ≡⟨ sym (++-assoc (k x) _ _) ⟩
+    (k x ++ xs >>= k) ++ (ys >>= k)
+    ∎
 
   {-# COMPILE AGDA2HS iLawfulMonadPlusList laws #-}
-
-
 

@@ -1,4 +1,4 @@
-module Example1.Writer where
+module AnalysisFindingErrors.Writer where
 
 import Test.QuickCheck (Arbitrary(arbitrary, shrink))
 
@@ -23,5 +23,5 @@ instance (Monoid w) => Monad (Writer w) where
 
 instance (Arbitrary w, Arbitrary a) => Arbitrary (Writer w a) where
     arbitrary = curry Writer' <$> arbitrary <*> arbitrary
-    shrink = (Writer' <$>) . shrink . \ r -> runWriter r
+    shrink (Writer' x) = Writer' <$> shrink x
 

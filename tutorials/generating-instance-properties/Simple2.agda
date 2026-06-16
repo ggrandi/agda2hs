@@ -20,4 +20,3 @@ instance
 
 {-# COMPILE AGDA2HS iTrivial laws #-}
 
-

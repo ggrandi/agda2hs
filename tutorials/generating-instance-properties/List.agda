@@ -19,7 +19,7 @@ record Collection (C : Type → Type) (A : Type) : Type₁ where
 
 open Collection ⦃...⦄ public
 
-record IsLawfulCollection (C : Type → Type) (A : Type) 
+record IsLawfulCollection (C : Type → Type) (A : Type)
   ⦃ iColCA : Collection C A ⦄ : Type₁ where
   field
     size-empty : size (the (C A) empty) ≡ 0

@@ -1,8 +1,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 
-module Example1.ListT where
+module AnalysisFindingErrors.ListT where
 
-import Example1.Writer (Writer)
+import AnalysisFindingErrors.Writer (Writer)
 import Numeric.Natural (Natural)
 import Test.QuickCheck (Arbitrary(arbitrary, shrink))
 
@@ -13,9 +13,6 @@ newtype ListT m a = ListT'{runListT :: m [a]}
 
 instance (Eq (m [a])) => Eq (ListT m a) where
     x == y = runListT x == runListT y
-
-instance (Show (m [a])) => Show (ListT m a) where
-    show = ("ListT (" ++) . (++ ")") . show . \ r -> runListT r
 
 instance (Functor m) => Functor (ListT m) where
     fmap f (ListT' x) = ListT' $ (f <$>) <$> x
@@ -64,5 +61,5 @@ prop_def_zap_bind
 
 instance (Arbitrary (m [a])) => Arbitrary (ListT m a) where
     arbitrary = ListT' <$> arbitrary
-    shrink = (ListT' <$>) . shrink . \ r -> runListT r
+    shrink (ListT' x) = ListT' <$> shrink x
 

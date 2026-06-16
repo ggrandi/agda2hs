@@ -21,19 +21,17 @@ import Agda.TypeChecking.Telescope (PiApplyM (piApplyM), ifPi, telView)
 import Agda2Hs.AgdaUtils (decify, findInstance', resolveStringName)
 import Agda2Hs.Compile.Term (compileTerm)
 import Agda2Hs.Compile.Type (compileType)
-import Agda2Hs.Compile.Utils (agda2hsError)
+import Agda2Hs.Compile.Utils (agda2hsErrorM)
 import qualified Agda2Hs.Language.Haskell as Hs
-import Control.Applicative (empty)
-import Control.Monad (guard)
+import Control.Monad (forM, guard)
 import Data.Foldable (foldrM)
-import Data.Functor (($>))
+import Data.Function ((&))
+import Data.Functor (($>), (<&>))
 import qualified Data.Text as T
 
-{-# INLINE fromFoldable #-}
-fromFoldable :: (Foldable f, Monad m) => f a -> ListT m a
-fromFoldable = foldr consListT nilListT
+chooseOne :: (Foldable f, Monad m) => f a -> ListT m a
+chooseOne = foldr consListT nilListT
 
-{-# INLINE haskellifyName #-}
 haskellifyName :: NameParts -> String
 haskellifyName =
   replaceProblematic
@@ -58,41 +56,40 @@ haskellifyName =
 
 compileLaws :: Definition -> C [Hs.Decl ()]
 compileLaws def = do
-  natTy <- liftTCM natTy
-  reportSDoc "rp" 10 $ text "def: " <+> pretty (defType def)
-  -- reportSDoc "rp" 10 . pshow . defType $ def
-  (q, _) <- case unEl . defType $ def of
-    Def q elims -> pure (q, elims)
-    x -> agda2hsError =<< text "expected def but got: " <+> prettyTCM x
-  reportSDoc "rp" 10 $ text "x: " <+> prettyTCM q
-  x <- getConstInfo q
-  reportSDoc "rp" 10 $ text "x: " <+> pretty x
-  sequenceListT $ do
-    f <- case theDef x of
-      RecordDefn x -> fromFoldable . _recFields $ x
-      _ -> do
-        lift . reportSDoc "rp" 10 $ text "expected RecordDefN but got: " <+> pretty x
-        empty
-    guard $ argInfoHiding (domInfo f) == NotHidden
-    lift . reportSDoc "rp" 10 $ text "f: " <+> pretty f
-    fieldVal <- liftTCM (infer $ Def (defName def) [Proj ProjSystem $ unDom f]) >>= liftTCM . applyX natTy
-    lift . reportSDoc "rp" 10 $ text "fieldVal: " <+> prettyTCM fieldVal
-    let prop_name = Hs.Ident () . ("prop_" ++) . haskellifyName . nameNameParts . nameCanonical . qnameName . unDom $ f
-    TelV ts ty <- telView fieldVal
-    lift . reportSDoc "rp" 10 $ text "telescope args: " <+> prettyTCM ts
-    (_, decidedExp) <- lift $ addContext ts $ do
-      decTy <- decify ty
-      decExp <-
-        liftTCM (findInstance' decTy) >>= \case
-          Nothing -> do
-            reportSDoc "rp" 10 $ "No Dec instance found for" <+> prettyTCM decTy
-            pure $ Hs.Con () $ Hs.UnQual () $ Hs.Ident () "False"
-          Just decInst -> do
-            reportSDoc "rp" 10 $ text "decinst: " <+> prettyTCM decInst
-            compileTerm decTy decInst
-      (,decExp) <$> compileType (unEl decTy)
-    -- ty <- lift $ typeSig ts decTy
-    pats <- lift $ pats ts
+  reportSDoc "rp" 10 $ text "def: " <+> prettyTCM (defType def)
+  -- TODO: inspect _defTs for applying values to the definition
+  TelV _defTs defCore <- def & defType & telView
+  qname <- case unEl defCore of
+    Def q _ -> pure q
+    x -> agda2hsErrorM $ text "expected def but got: " $+$ prettyTCM x
+  reportSDoc "rp" 10 $ text "q: " <+> prettyTCM qname
+  defInfo <- getConstInfo qname
+  reportSDoc "rp" 10 $ text "defInfo: " <+> pretty defInfo
+  defFields <- case theDef defInfo of
+    RecordDefn x -> pure . _recFields $ x
+    _ -> lift $ agda2hsErrorM $ text "expected to compile a record with the laws pragma but got: " $+$ pretty defInfo
+  natTy <- resolveStringName "Nat" <&> (`Def` [])
+  -- TODO: Use a different check for whether a field should be included as a law
+  let laws = filter (\field -> argInfoHiding (domInfo field) == NotHidden) defFields
+  forM laws $ \law -> do
+    reportSDoc "rp" 10 $ text "f: " <+> pretty law
+    fieldTy <- liftTCM $ infer (Def (defName def) [Proj ProjSystem $ unDom law])
+    lawTy <- liftTCM $ applyX natTy fieldTy
+    reportSDoc "rp" 10 $ text "lawTy: " <+> prettyTCM lawTy
+    let law_name = law & unDom & qnameName & nameCanonical & nameNameParts & haskellifyName
+    let prop_name = Hs.Ident () ("prop_" ++ law_name)
+    TelV fieldTs fieldTy <- telView lawTy
+    reportSDoc "rp" 10 $ text "telescope args: " <+> prettyTCM fieldTs
+    decidedExp <- addContext fieldTs $ do
+      decTy <- decify fieldTy
+      -- Ignore the type since it can be inferred on the Haskell side and I expect it to be a Boolean
+      liftTCM (findInstance' decTy) >>= \case
+        Nothing -> do
+          agda2hsErrorM $ "No Dec instance found for" $+$ prettyTCM fieldTy
+        Just decInst -> do
+          reportSDoc "rp" 10 $ text "decinst: " <+> prettyTCM decInst
+          compileTerm decTy decInst
+    pats <- pats fieldTs
     pure $ Hs.FunBind () [Hs.Match () prop_name pats (Hs.UnGuardedRhs () decidedExp) Nothing]
  where
   pats :: Tele (Dom Type) -> C [Hs.Pat ()]
@@ -122,11 +119,6 @@ compileLaws def = do
           applyX x appliedTy
       | otherwise -> do
           reportSDoc "rp" 100 $ text "N applyX: " <+> prettyTCM arg
-          x <- (body $>) <$> underAbstraction arg body (applyX x)
-          pure $ mkPiSort arg x `El` Pi arg x
+          newBody <- (body $>) <$> underAbstraction arg body (applyX x)
+          pure $ mkPiSort arg newBody `El` Pi arg newBody
     _ -> pure ty
-
-  natTy :: TCM Term
-  natTy = do
-    qn <- resolveStringName "Nat"
-    pure (Def qn [])

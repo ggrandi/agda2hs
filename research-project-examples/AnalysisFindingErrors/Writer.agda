@@ -1,6 +1,4 @@
-module Example1.Writer where
-
--- {-# FOREIGN AGDA2HS {-# LANGUAGE UndecidableInstances #-} #-}
+module AnalysisFindingErrors.Writer where
 
 open import Haskell.Prelude
 open import Haskell.Extra.Dec
@@ -32,9 +30,9 @@ instance
 
   {-# COMPILE AGDA2HS iEqWriter #-}
 
-  iLawfulEqWriter : ⦃ _ : Eq w ⦄ → ⦃ _ : IsLawfulEq w ⦄ → ⦃ _ : Eq a ⦄ → ⦃ _ : IsLawfulEq a ⦄ 
+  iLawfulEqWriter : ⦃ _ : Eq w ⦄ → ⦃ _ : IsLawfulEq w ⦄ → ⦃ _ : Eq a ⦄ → ⦃ _ : IsLawfulEq a ⦄
     → IsLawfulEq (Writer w a)
-  iLawfulEqWriter .IsLawfulEq.isEquality (Writer' x) (Writer' y) = 
+  iLawfulEqWriter .IsLawfulEq.isEquality (Writer' x) (Writer' y) =
     mapReflects (cong Writer') (λ { refl → refl }) (isEquality x y)
 
   iDefaultFunctorWriter : DefaultFunctor (Writer w)
@@ -47,15 +45,17 @@ instance
 
   iDefaultApplicativeWriter : ⦃ _ : Monoid w ⦄ → DefaultApplicative (Writer w)
   iDefaultApplicativeWriter .DefaultApplicative.pure = Writer' ∘ pure
-  iDefaultApplicativeWriter .DefaultApplicative._<*>_ (Writer' mf) (Writer' mx) = Writer' $ mf <*> mx
+  iDefaultApplicativeWriter .DefaultApplicative._<*>_ 
+    (Writer' mf) (Writer' mx) = Writer' $ mf <*> mx
 
   iApplicativeWriter : ⦃ _ : Monoid w ⦄ → Applicative (Writer w)
   iApplicativeWriter = record{DefaultApplicative iDefaultApplicativeWriter}
 
   {-# COMPILE AGDA2HS iApplicativeWriter #-}
- 
+
   iDefaultMonadWriter : ⦃ _ : Monoid w ⦄ → DefaultMonad (Writer w)
-  (iDefaultMonadWriter DefaultMonad.>>= Writer' x) k = Writer' $ x >>= (runWriter ∘ k)
+  iDefaultMonadWriter .DefaultMonad._>>=_ (Writer' x) k = 
+    Writer' $ x >>= (runWriter ∘ k)
 
   iMonadWriter : ⦃ _ : Monoid w ⦄ → Monad (Writer w)
   iMonadWriter = record{DefaultMonad iDefaultMonadWriter}
@@ -64,6 +64,6 @@ instance
 
   iArbitraryWriter : ⦃ _ : Arbitrary w ⦄ ⦃ _ : Arbitrary a ⦄ → Arbitrary (Writer w a)
   iArbitraryWriter .arbitrary = curry Writer' <$> arbitrary <*> arbitrary
-  iArbitraryWriter .shrink    = (Writer' <$>_) ∘ shrink ∘ runWriter
+  iArbitraryWriter .shrink (Writer' x) = Writer' <$> shrink x
 
   {-# COMPILE AGDA2HS iArbitraryWriter #-}

@@ -5,6 +5,8 @@ open import Haskell.Prim.Tuple
 
 open import Haskell.Prim.Monoid
 
+open import Haskell.Law.Equality
+
 record IsLawfulSemigroup (a : Type) ⦃ iSemigroupA : Semigroup a ⦄ : Type₁ where
   field
     -- Associativity: x <> (y <> z) = (x <> y) <> z
@@ -12,14 +14,19 @@ record IsLawfulSemigroup (a : Type) ⦃ iSemigroupA : Semigroup a ⦄ : Type₁ 
 
 open IsLawfulSemigroup ⦃ ... ⦄ public
 
-postulate instance
-  iLawfulSemigroupFun : ⦃ iSemB : Semigroup b ⦄ → ⦃ IsLawfulSemigroup b ⦄ → IsLawfulSemigroup (a → b)
-
+instance
   iLawfulSemigroupUnit : IsLawfulSemigroup ⊤
+  iLawfulSemigroupUnit .IsLawfulSemigroup.associativity x y z = refl
 
   iLawfulSemigroupTuple₂ : ⦃ iSemA : Semigroup a ⦄ ⦃ iSemB : Semigroup b ⦄
                          → ⦃ IsLawfulSemigroup a ⦄ → ⦃ IsLawfulSemigroup b ⦄
                          → IsLawfulSemigroup (a × b)
+  iLawfulSemigroupTuple₂ .IsLawfulSemigroup.associativity (x₁ , y₁) (x₂ , y₂) (x₃ , y₃) = 
+    cong₂ _,_ (associativity _ _ _) (associativity _ _ _)
+
+postulate instance
+  iLawfulSemigroupFun : ⦃ iSemB : Semigroup b ⦄ → ⦃ IsLawfulSemigroup b ⦄ → IsLawfulSemigroup (a → b)
+
 
   iLawfulSemigroupTuple₃ : ⦃ iSemA : Semigroup a ⦄ ⦃ iSemB : Semigroup b ⦄ ⦃ iSemC : Semigroup c ⦄
                          → ⦃ IsLawfulSemigroup a ⦄ → ⦃ IsLawfulSemigroup b ⦄ → ⦃ IsLawfulSemigroup c ⦄

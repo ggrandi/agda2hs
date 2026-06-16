@@ -40,7 +40,7 @@ instance
   {-# COMPILE AGDA2HS iLawfulSemigroupAdd laws #-}
 
   iLawfulMonoidAdd : IsLawfulMonoid Add
-  iLawfulMonoidAdd .IsLawfulMonoid.rightIdentity (Add' x) = cong Add' $ aux x where 
+  iLawfulMonoidAdd .IsLawfulMonoid.rightIdentity (Add' x) = cong Add' $ aux x where
     aux : (x : Nat) → x + 0 ≡ x
     aux zero = refl
     aux (suc x) = cong suc $ aux x
@@ -50,4 +50,3 @@ instance
 
   {-# COMPILE AGDA2HS iLawfulMonoidAdd laws #-}
 
-  
