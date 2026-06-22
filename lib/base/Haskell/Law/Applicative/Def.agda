@@ -22,7 +22,7 @@ record IsLawfulApplicative (F : Type → Type) ⦃ iAppF : Applicative F ⦄ : T
 
     -- Homomorphism: pure f <*> pure x = pure (f x)
     homomorphism : {a b : Type} → (f : a → b) (x : a)
-      → (Applicative._<*>_ iAppF (pure f) (pure x)) ≡ (pure (f x))
+      → (the (F (a → b)) (pure f) <*> (pure x)) ≡ (pure (f x))
 
     -- Interchange: u <*> pure y = pure ($ y) <*> u
     interchange : {a b : Type} → (u : F (a → b)) (y : a)
@@ -36,6 +36,6 @@ open IsLawfulApplicative ⦃ ... ⦄ public
 instance postulate
   iLawfulApplicativeFun : IsLawfulApplicative (λ b → a → b)
 
-  iLawfulApplicativeTuple₂ : ⦃ Monoid a ⦄ → Applicative (a ×_)
+  iLawfulApplicativeTuple₂ : ⦃ _ : Monoid a ⦄ → IsLawfulApplicative (a ×_)
 
-  iLawfulApplicativeTuple₃ : ⦃ Monoid a ⦄ → ⦃ Monoid b ⦄ → Applicative (a × b ×_)
+  iLawfulApplicativeTuple₃ : ⦃ _ : Monoid a ⦄ ⦃ _ : Monoid b ⦄ → IsLawfulApplicative (a × b ×_)

@@ -19,11 +19,6 @@ open Writer public
 variable
   w : Type
 
-tell : w → Writer w ⊤
-tell = Writer' ∘ (_, tt)
-
-{-# COMPILE AGDA2HS tell #-}
-
 instance
   iEqWriter : ⦃ _ : Eq w ⦄ → ⦃ _ : Eq a ⦄ → Eq (Writer w a)
   iEqWriter .Eq._==_ (Writer' x) (Writer' y) = x == y

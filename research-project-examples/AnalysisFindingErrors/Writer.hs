@@ -5,9 +5,6 @@ import Test.QuickCheck (Arbitrary(arbitrary, shrink))
 newtype Writer w a = Writer'{runWriter :: (w, a)}
                        deriving (Show)
 
-tell :: w -> Writer w ()
-tell = Writer' . \ section -> (section, ())
-
 instance (Eq w, Eq a) => Eq (Writer w a) where
     Writer' x == Writer' y = x == y
 

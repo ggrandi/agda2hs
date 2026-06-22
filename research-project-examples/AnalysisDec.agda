@@ -1,7 +1,7 @@
 module AnalysisDec where
 
 open import Haskell.Prelude
-open import Haskell.Prim using (it)
+open import Haskell.Prim using (the; it)
 open import Haskell.Extra.Dec
 open import Haskell.Extra.Dec.Instances
 open import Haskell.Extra.Refinement
@@ -15,17 +15,18 @@ data IsAscending {a : Type} ⦃ iOrdA : Ord a ⦄ : List a → Type where
     Empty : IsAscending []
     OneElem : {x : a} →  IsAscending (x ∷ [])
     ManyElem : {x y : a} {xs : List a}
-        → ⦃ IsAscending (y ∷ xs) ⦄
         → ⦃ IsTrue (x <= y) ⦄
+        → ⦃ IsAscending (y ∷ xs) ⦄
         → IsAscending (x ∷ y ∷ xs)
+
 
 instance
   decIsAscending : {a : Type} ⦃ _ : Ord a ⦄ {xs : List a} → Dec (IsAscending xs)
   decIsAscending {xs = []} = True ⟨⟩
   decIsAscending {xs = _ ∷ []} = True ⟨⟩
   decIsAscending {xs = x ∷ y ∷ xs} = mapDec
-    (λ { (h' , h) → ManyElem ⦃ _ ⦄ ⦃ h ⦄ ⦃ h' ⦄ })
-    (λ { (ManyElem ⦃ h ⦄ ⦃ h' ⦄) → h' , h })
+    (λ { (h , h') → ManyElem ⦃ _ ⦄ ⦃ h ⦄ ⦃ h' ⦄ })
+    (λ { (ManyElem ⦃ h ⦄ ⦃ h' ⦄) → h , h' })
     (iDecPair {IsTrue (x <= y)} {IsAscending (y ∷ xs)})
 
   {-# COMPILE AGDA2HS decIsAscending #-}

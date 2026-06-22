@@ -1,6 +1,9 @@
 module ImplementationExample where
 
-{-# FOREIGN AGDA2HS import Prelude hiding (Maybe, Just, Nothing) #-}
+{-# FOREIGN AGDA2HS 
+import Prelude hiding (Maybe, Just, Nothing) 
+import Test.QuickCheck (Fun(Fun))
+#-}
 
 open import Haskell.Prelude hiding (Maybe; Just; Nothing; iEqMaybe; iFunctorMaybe; iDefaultFunctorMaybe)
 
@@ -27,11 +30,9 @@ instance
   iDefaultFunctorMaybe .DefaultFunctor.fmap f (Just x) = Just (f x)
   {-# COMPILE AGDA2HS iFunctorMaybe #-}
 
-instance
+postulate instance
   iLawfulFunctorMaybe : IsLawfulFunctor Maybe
-  iLawfulFunctorMaybe = inst where postulate
-    inst : IsLawfulFunctor Maybe
-  {-# COMPILE AGDA2HS iLawfulFunctorMaybe laws #-}
+{-# COMPILE AGDA2HS iLawfulFunctorMaybe laws #-}
 
 instance
   iEqMaybe : ⦃ _ : Eq a ⦄ → Eq (Maybe a)

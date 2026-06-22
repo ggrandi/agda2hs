@@ -1,9 +1,9 @@
 module ImplementationExample where
 
-import Numeric.Natural (Natural)
 import Test.QuickCheck (Arbitrary(arbitrary, shrink), frequency)
 
 import Prelude hiding (Maybe, Just, Nothing)
+import Test.QuickCheck (Fun(Fun))
 
 data Maybe a = Nothing
              | Just a
@@ -13,9 +13,9 @@ instance Functor Maybe where
     fmap f Nothing = Nothing
     fmap f (Just x) = Just (f x)
 
-prop_identity (fa :: Maybe Natural) = fmap id fa == id fa
-prop_composition (fa :: Maybe Natural)
-  (Fun _ (f :: Natural -> Natural)) (Fun _ (g :: Natural -> Natural))
+prop_identity (fa :: Maybe Integer) = fmap id fa == id fa
+prop_composition (fa :: Maybe Integer)
+  (Fun _ (f :: Integer -> Integer)) (Fun _ (g :: Integer -> Integer))
   = fmap (g . f) fa == (fmap g . fmap f) fa
 
 instance (Eq a) => Eq (Maybe a) where

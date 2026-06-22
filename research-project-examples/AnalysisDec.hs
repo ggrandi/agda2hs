@@ -2,7 +2,6 @@
 module AnalysisDec where
 
 import Data.List (sort)
-import Numeric.Natural (Natural)
 
 decIsAscending :: Ord a => [a] -> Bool
 decIsAscending [] = True
@@ -15,9 +14,6 @@ class ExtractSorted cont where
 instance ExtractSorted [] where
     extractSorted = sort
 
-prop_IsAscending_extractSorted (xs :: [Natural])
+prop_IsAscending_extractSorted (xs :: [Integer])
   = decIsAscending (extractSorted xs)
-
-fun :: [[Natural]] -> Bool
-fun xss = it (all (\ x -> length x == 10##) xss)
 

@@ -70,6 +70,6 @@ open IsLawfulMonad ⦃ ... ⦄ public
 instance postulate
   iLawfulMonadFun : IsLawfulMonad (λ b → a → b)
 
-  iLawfulMonadTuple₂ : ⦃ Monoid a ⦄ → Monad (a ×_)
+  iLawfulMonadTuple₂ : ⦃ _ : Monoid a ⦄ → IsLawfulMonad (a ×_)
 
-  iLawfulMonadTuple₃ : ⦃ Monoid a ⦄ → ⦃ Monoid b ⦄ → Monad (a × b ×_)
+  iLawfulMonadTuple₃ : ⦃ _ : Monoid a ⦄ ⦃ _ : Monoid b ⦄ → IsLawfulMonad (a × b ×_)

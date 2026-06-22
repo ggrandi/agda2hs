@@ -3,16 +3,12 @@
 module AnalysisFindingErrors.ListT where
 
 import AnalysisFindingErrors.Writer (Writer)
-import Numeric.Natural (Natural)
 import Test.QuickCheck (Arbitrary(arbitrary, shrink))
 
 
 import Test.QuickCheck.Function (Fun(..))
 
 newtype ListT m a = ListT'{runListT :: m [a]}
-
-instance (Eq (m [a])) => Eq (ListT m a) where
-    x == y = runListT x == runListT y
 
 instance (Functor m) => Functor (ListT m) where
     fmap f (ListT' x) = ListT' $ (f <$>) <$> x
@@ -28,32 +24,32 @@ instance (Monad m) => Monad (ListT m) where
              b <- mapM ((\ r -> runListT r) . k) a
              pure (concat b)
 
-prop_leftIdentity (x :: Natural)
-  (Fun _ (k :: Natural -> ListT (Writer String) Natural))
+prop_leftIdentity (x :: Integer)
+  (Fun _ (k :: Integer -> ListT (Writer String) Integer))
   = (return x >>= k) == k x
-prop_rightIdentity (ma :: ListT (Writer String) Natural)
+prop_rightIdentity (ma :: ListT (Writer String) Integer)
   = (ma >>= return) == ma
-prop_associativity (ma :: ListT (Writer String) Natural)
-  (Fun _ (f :: Natural -> ListT (Writer String) Natural))
-  (Fun _ (g :: Natural -> ListT (Writer String) Natural))
+prop_associativity (ma :: ListT (Writer String) Integer)
+  (Fun _ (f :: Integer -> ListT (Writer String) Integer))
+  (Fun _ (g :: Integer -> ListT (Writer String) Integer))
   = do x <- ma
        f x >>= g
       == (ma >>= f >>= g)
-prop_def_seq_bind (ma :: ListT (Writer String) Natural)
-  (mb :: ListT (Writer String) Natural)
+prop_def_seq_bind (ma :: ListT (Writer String) Integer)
+  (mb :: ListT (Writer String) Integer)
   = do ma
        mb
       ==
       do x <- ma
          mb
-prop_def_pure_return (x :: Natural)
-  = (pure x :: ListT (Writer String) Natural) == return x
-prop_def_fmap_bind (Fun _ (f :: Natural -> Natural))
-  (ma :: ListT (Writer String) Natural)
+prop_def_pure_return (x :: Integer)
+  = (pure x :: ListT (Writer String) Integer) == return x
+prop_def_fmap_bind (Fun _ (f :: Integer -> Integer))
+  (ma :: ListT (Writer String) Integer)
   = fmap f ma == (ma >>= return . f)
 prop_def_zap_bind
-  (mab :: ListT (Writer String) (Natural -> Natural))
-  (ma :: ListT (Writer String) Natural)
+  (mab :: ListT (Writer String) (Integer -> Integer))
+  (ma :: ListT (Writer String) Integer)
   = (mab <*> ma) ==
       do f <- mab
          x <- ma
@@ -62,4 +58,7 @@ prop_def_zap_bind
 instance (Arbitrary (m [a])) => Arbitrary (ListT m a) where
     arbitrary = ListT' <$> arbitrary
     shrink (ListT' x) = ListT' <$> shrink x
+
+instance (Eq (m [a])) => Eq (ListT m a) where
+    x == y = runListT x == runListT y
 

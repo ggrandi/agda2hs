@@ -27,15 +27,6 @@ open ListT public
 {-# COMPILE AGDA2HS ListT newtype #-}
 
 instance
-  iEqListT : ⦃ _ : Eq (m (List a)) ⦄ → Eq (ListT m a)
-  iEqListT ._==_ x y = x .runListT == y .runListT
-
-  {-# COMPILE AGDA2HS iEqListT #-}
-
-  iLawfulEqListT : ⦃ _ : Eq (m (List a)) ⦄ → ⦃ _ : IsLawfulEq (m (List a)) ⦄ → IsLawfulEq (ListT m a)
-  iLawfulEqListT .isEquality (ListT' x) (ListT' y) = 
-    mapReflects (cong ListT') (λ { refl → refl }) (isEquality x y)
-
   iDefaultFunctorListT : ⦃ _ : Functor m ⦄ → DefaultFunctor (ListT m)
 
   iFunctorListT : ⦃ _ : Functor m ⦄ → Functor (ListT m)
@@ -68,14 +59,21 @@ instance
     pure (concat b)
 
 
-  iPreLawfulMonadListT : PreLawfulMonad (ListT (Writer String))
-  iPreLawfulMonadListT = TODO
-    where postulate TODO : ∀{a} {A : Type a} → A
+postulate instance iPreLawfulMonadListT : PreLawfulMonad (ListT (Writer String))
+{-# COMPILE AGDA2HS iPreLawfulMonadListT laws #-}
 
-  {-# COMPILE AGDA2HS iPreLawfulMonadListT laws #-}
-
+instance
   iArbitraryListT : ⦃ _ : Arbitrary (m (List a)) ⦄ → Arbitrary (ListT m a)
   iArbitraryListT .arbitrary = ListT' <$> arbitrary
   iArbitraryListT .shrink (ListT' x) = ListT' <$> shrink x
 
   {-# COMPILE AGDA2HS iArbitraryListT #-}
+
+  iEqListT : ⦃ _ : Eq (m (List a)) ⦄ → Eq (ListT m a)
+  iEqListT ._==_ x y = x .runListT == y .runListT
+
+  {-# COMPILE AGDA2HS iEqListT #-}
+
+  iLawfulEqListT : ⦃ _ : Eq (m (List a)) ⦄ → ⦃ _ : IsLawfulEq (m (List a)) ⦄ → IsLawfulEq (ListT m a)
+  iLawfulEqListT .isEquality (ListT' x) (ListT' y) = 
+    mapReflects (cong ListT') (λ { refl → refl }) (isEquality x y)

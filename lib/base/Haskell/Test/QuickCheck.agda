@@ -11,9 +11,9 @@ postulate
     ⦃ @0 non-empty : NonEmpty xs ⦄
     -- frequency xs
     -- | any (< 0) (map fst xs) = error "QuickCheck.frequency: negative weight"
-    ⦃ @0 non-negative : IsFalse (any (_< 0) (map fst xs)) ⦄
+    ⦃ @0 not-negative : IsFalse (any (_< 0) (map fst xs)) ⦄
     -- | all (== 0) (map fst xs) = error "QuickCheck.frequency: all weights were zero"
-    ⦃ @0 non-zero : IsFalse (all (_== 0) (map fst xs)) ⦄
+    ⦃ @0 not-zero : IsFalse (all (_== 0) (map fst xs)) ⦄
     → Gen a
 
   instance
@@ -34,7 +34,7 @@ postulate
     iArbitraryNat : Arbitrary Nat
     iArbitraryInt : Arbitrary Int
     iArbitraryString : Arbitrary String
-    iArbitraryEither : ⦃ _ : Arbitrary a ⦄ → ⦃ _ : Arbitrary b ⦄ → Arbitrary (Either a b)
-    iArbitraryTuple₂ : ⦃ _ : Arbitrary a ⦄ → ⦃ _ : Arbitrary b ⦄ → Arbitrary (a × b)
-    iArbitraryTuple₃ : ⦃ _ : Arbitrary a ⦄ → ⦃ _ : Arbitrary b ⦄ → ⦃ _ : Arbitrary c ⦄
+    iArbitraryEither : ⦃ _ : Arbitrary a ⦄ ⦃ _ : Arbitrary b ⦄ → Arbitrary (Either a b)
+    iArbitraryTuple₂ : ⦃ _ : Arbitrary a ⦄ ⦃ _ : Arbitrary b ⦄ → Arbitrary (a × b)
+    iArbitraryTuple₃ : ⦃ _ : Arbitrary a ⦄ ⦃ _ : Arbitrary b ⦄ ⦃ _ : Arbitrary c ⦄
       → Arbitrary (a × b × c)

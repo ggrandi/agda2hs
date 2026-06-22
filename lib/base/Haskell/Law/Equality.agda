@@ -18,6 +18,9 @@ cong f refl = refl
 cong₂ : ∀ (f : a → b → c) {x y u v} → x ≡ y → u ≡ v → f x u ≡ f y v
 cong₂ f refl refl = refl
 
+cong₃ : ∀ (f : a → b → c → d) {x y u v n m} → x ≡ y → u ≡ v → n ≡ m → f x u n ≡ f y v m
+cong₃ f refl refl refl = refl
+
 sym : ∀ {A : Type} {x y : A} → x ≡ y → y ≡ x
 sym refl = refl
 
